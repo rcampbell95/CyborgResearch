@@ -16,6 +16,13 @@ CybORG\.egg-info/
 
 _pycache_/
 *.pyc
+# System files
+.DS_Store
+
+# Python virtual environment
+env/
+
+# Add other unnecessary directories/files
 
 CybORG/Logs/
 CybORG/Emulator/Logs/
