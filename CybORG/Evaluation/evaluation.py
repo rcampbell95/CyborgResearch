@@ -1,11 +1,13 @@
 import inspect
 import time
 from statistics import mean, stdev
+import os
 
 from CybORG import CybORG, CYBORG_VERSION
 from CybORG.Simulator.Scenarios import DroneSwarmScenarioGenerator
 
 from datetime import datetime
+import yaml
 
 # this imports a submissions agents
 from CybORG.Evaluation.submission.submission import agents, wrap
@@ -22,7 +24,8 @@ def run_evaluation(name, team, name_of_agent, max_eps, write_to_file=True):
 
     print(f'Using agents {agents}, if this is incorrect please update the code to load in your agent')
     if write_to_file:
-        file_name = str(inspect.getfile(CybORG))[:-7] + '/Evaluation/' + time.strftime("%Y%m%d_%H%M%S")
+        base_path = os.path.dirname(__file__)
+        file_name = os.path.join(base_path, "evaluation")
         print(f'Saving evaluation results to {file_name}_summary.txt and {file_name}_full.txt')
     start = datetime.now()
 
@@ -32,6 +35,7 @@ def run_evaluation(name, team, name_of_agent, max_eps, write_to_file=True):
     actions_log = []
     obs_log = []
     total_steps = 0
+    rewards_per_agent = []
     for i in range(max_eps):
         observations = wrapped_cyborg.reset()
         action_spaces = wrapped_cyborg.action_spaces
@@ -45,6 +49,8 @@ def run_evaluation(name, team, name_of_agent, max_eps, write_to_file=True):
             actions = {agent_name: agent.get_action(observations[agent_name], action_spaces[agent_name]) for agent_name, agent in agents.items() if agent_name in wrapped_cyborg.agents}
             observations, rew, done, info = wrapped_cyborg.step(actions)
             r.append(mean(rew.values()))
+
+            rewards_per_agent.append(rew)
             if all(done.values()):
                 break
             if write_to_file:
@@ -73,12 +79,34 @@ def run_evaluation(name, team, name_of_agent, max_eps, write_to_file=True):
             for act, obs, sum_rew in zip(actions_log, obs_log, total_reward):
                 data.write(f'actions: {act},\n observations: {obs} \n total reward: {sum_rew}\n')
 
+        with open(file_name + '_full.yaml', 'w') as data:
+            summary = {}
+            summary["cyborg_version"] = cyborg_version
+            summary["author"] = name
+            summary["team"] = team
+            summary["technique"] = name_of_agent
+            summary["mean"] = mean(total_reward)
+            summary["stdev"] = stdev(total_reward)
+            summary["actions"] = act
+            summary["obs"] = obs
+            summary["rewards"] = rewards_per_agent
+            summary["scenario"] = scenario
+
+            data.write(yaml.dump(summary))
+
+
 
 if __name__ == "__main__":
     # ask for a name
     name = input('Name: ')
-    # ask for a team
-    team = input("Team: ")
-    # ask for a name for the agent
-    technique = input("Name of technique: ")
+
+    if not name.strip():
+        name = "test"
+        team = "test"
+        technique = "test"
+    else:
+        # ask for a team
+        team = input("Team: ")
+        # ask for a name for the agent
+        technique = input("Name of technique: ")
     run_evaluation(name, team, technique, 100)
